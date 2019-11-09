@@ -1,5 +1,5 @@
 from tkinter import *
-from chess_window import Window
+from ai_chess_window import Window
 
 if __name__ == '__main__':
     root = Tk()

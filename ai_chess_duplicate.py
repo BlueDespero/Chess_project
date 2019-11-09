@@ -5,12 +5,17 @@ import copy
 from board import draw_board
 from pieces import order_white, movement, pieces
 from checker import checking
+from dicts import pieces_value
 import time
+import random
 
 class Window(Frame):
 
-    def __init__(self, state = [], color = 0):
-        self.color = color
+    def __init__(self, state = [], color = 1):
+        self.player_color = 0
+        self.color = 0
+        self.current_color = IntVar()
+        self.chose_color()
         self.checmate_msg_up = 0
         self.state = state
         self.rect_h = 0
@@ -28,6 +33,22 @@ class Window(Frame):
         super().__init__()
         self.init_window()
 
+    def color_button(self, parent, color):
+        self.player_color = color
+        parent.destroy()
+
+    def chose_color(self):
+        top = Toplevel()
+
+        msg = Message(top, text="Wybierz kolor", font = ("Courier", 44))
+        msg.pack()
+
+        biale = Button(top, text="Biale", command=lambda:self.color_button(top,1), font = ("Courier", 44))
+        biale.pack()
+        czarne = Button(top, text="Czarne", command=lambda:self.color_button(top,0), font = ("Courier", 44))
+        czarne.pack()
+        top.wait_window()
+
     def change_player(self):
         copy_state = copy.deepcopy(self.state)
         changed_copy = [[[0,0] for i in range(8)] for j in range(8)]
@@ -43,6 +64,7 @@ class Window(Frame):
 
         self.state = changed_copy
         self.color = (self.color+1)%2
+        self.current_color.set((self.current_color.get()+1)%2)
 
     def checkmate_window_popup(self, text):
         top = Toplevel()
@@ -53,32 +75,31 @@ class Window(Frame):
 
     def checkmate(self):
         possibs = []
+        c_copy = copy.deepcopy(self.state)
         for y in range(8):
             for x in range(8):
                 p_number = copy.deepcopy(self.state[y][x][1])
                 if p_number!=0:
-                    p_color = (self.state[y][x][1]//7)
-                    if p_color == self.color:
-                        c_copy = copy.deepcopy(self.state)
+                    if p_number//7 == self.color:
                         move = movement[p_number](c_copy,[x,y],self.color)
                         if move!=[]:
                             possibs.append(move)
-        
+        #print(possibs)
         if possibs==[]:
             self.checmate_msg_up = 1
             if checking(self.state,self.color):
                 msg = ''
-                if self.color == 1:
-                    msg = 'Checkmate! White wins!'
+                if self.color == 0:
+                    msg = 'Checkmate! Wygrama bialych!'
                 else:
-                    msg= 'Chackmate! Black wins!'
+                    msg= 'Chackmate! Wygrana czarnych!'
                 self.checkmate_window_popup(msg)
             else:
                 msg = 'PAT!'
                 self.checkmate_window_popup(msg)
 
     def check_for_castlings(self):
-        if self.color == 0:
+        if self.color == 1:
             possible_long = 0
             if self.long_castling_white:
                 possible_long = 1
@@ -172,7 +193,7 @@ class Window(Frame):
             return [possible_short,possible_long]
 
     def on_click_button(self,root, figure):
-        if self.color == 0:
+        if self.color == 1:
             self.prom.set(figure)
         else:
             self.prom.set(figure+6)
@@ -182,16 +203,16 @@ class Window(Frame):
         top = Toplevel()
         top.title("Promotion!")
 
-        msg = Message(top, text="Your pawn is being promoted! Which figure should replace it?", font = ("Courier", 44))
+        msg = Message(top, text="Twoj pionek awansuje. Jaka figura ma mo zastapic?(Domyslnie hetman)", font = ("Courier", 44))
         msg.pack()
 
-        kon = Button(top, text="Knight", command=lambda:self.on_click_button(top,2), font = ("Courier", 44))
+        kon = Button(top, text="Kon", command=lambda:self.on_click_button(top,2), font = ("Courier", 44))
         kon.pack()
-        goniec = Button(top, text="Bishop", command=lambda:self.on_click_button(top,3), font = ("Courier", 44))
+        goniec = Button(top, text="Goniec", command=lambda:self.on_click_button(top,3), font = ("Courier", 44))
         goniec.pack()
-        wieza = Button(top, text="Rook", command=lambda:self.on_click_button(top,4), font = ("Courier", 44))
+        wieza = Button(top, text="Wieza", command=lambda:self.on_click_button(top,4), font = ("Courier", 44))
         wieza.pack()
-        hetman = Button(top, text="Queen", command=lambda:self.on_click_button(top,5), font = ("Courier", 44))
+        hetman = Button(top, text="Hetman", command=lambda:self.on_click_button(top,5), font = ("Courier", 44))
         hetman.pack()
 
     def update_state(self, b_x, b_y):
@@ -202,7 +223,7 @@ class Window(Frame):
         if self.state[b_y][b_x][1] == 6 or self.state[b_y][b_x][1] == 12:
             short_castling, long_castling = self.check_for_castlings()
 
-            if self.color == 0:
+            if self.color == 1:
                 if short_castling:
                     self.state[7][6][0]=2
                     self.possible_castling.append([6,7])
@@ -251,6 +272,12 @@ class Window(Frame):
         event.widget.configure(image = new_board)
         event.widget.image = new_board
 
+    def ai_update_image(self, parent):
+        new_board = draw_board(self.state, self.leng)
+        new_board = ImageTk.PhotoImage(new_board)
+        parent.configure(image = new_board)
+        parent.image = new_board
+
     def mark(self, event):
         b_x = int(event.x/self.rect_h)
         b_y = int(event.y/self.rect_h)
@@ -275,13 +302,13 @@ class Window(Frame):
                 self.short_castling_black = 0
 
             if self.selected == [0,7]:
-                if self.color == 0:
+                if self.color == 1:
                     self.long_castling_white = 0
                 else:
                     self.short_castling_black = 0
 
             if self.selected == [7,7]:
-                if self.color == 0:
+                if self.color == 1:
                     self.short_castling_white = 0
                 else:
                     self.long_castling_black = 0
@@ -300,7 +327,7 @@ class Window(Frame):
             self.change_player()
 
         if [b_x,b_y] in self.possible_castling:
-            if self.color == 0:
+            if self.color == 1:
                 if [b_x,b_y] == [6,7]:
                     self.state[7][6][1]=6
                     self.state[7][4][1]=0
@@ -319,7 +346,8 @@ class Window(Frame):
                 self.last_move = [[b_x,b_y], copy.deepcopy(self.selected)]
 
                 self.change_player()
-            elif self.color == 1:
+                self.ai_turn(event)
+            elif self.color == 0:
                 if [b_x,b_y] == [5,7]:
                     self.state[7][5][1]=12
                     self.state[7][3][1]=0
@@ -345,8 +373,9 @@ class Window(Frame):
         self.update_image(event)
 
     def initial_state(self):
+        self.current_color.set(1)
         self.state = [[[0,0] for i in range(8)] for j in range(8)]
-        if self.color == 0:
+        if self.color == 1:
             for n in range(8):
                 self.state[1][n][1] = 7
                 self.state[6][n][1] = 1
@@ -358,14 +387,17 @@ class Window(Frame):
             self.mark(event)
         else:
             self.move(event)
+
         if self.checmate_msg_up == 0:
             self.checkmate()
-    
+
+        if self.player_color != self.color:
+            self.update_image(event)
+
     def init_window(self):
         self.master.title('Krogulec')
         self.pack(fill = BOTH, expand = 1)
         self.columnconfigure(0, weight = 6)
-        #self.columnconfigure(1, weight = 1)
         self.rowconfigure(0,weight = 1)
 
         main_f = Frame(self, bg = "GREY")
@@ -385,6 +417,8 @@ class Window(Frame):
         b_board.image = board_handle
         b_board.bind("<Button-1>", self.select)
         b_board.place(x=(wid-leng)/2,y=0)
-        
-        #recordframe = Frame(self, bg="BLACK")
-        #recordframe.grid(column = 1, row = 0, sticky = (N,S,E,W))
+
+        '''
+        if self.current_color.get() != self.player_color:
+            self.ai_first_turn(b_board)
+        '''
